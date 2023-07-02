@@ -73,10 +73,6 @@ async def prompt_hook(request):
             msg = f"<B>Non-installed custom nodes are being used within the component.</B><BR><BR>{unresolved_nodes}"
             return web.json_response({"error": {"message": msg}, "node_errors": {}}, status=400)
 
-    if "prompt" in json_data:
-        prompt = json_data["prompt"]
-        workflow_execution.garbage_collect(prompt.keys())
-
     return await original_post_prompt(request)
 
 

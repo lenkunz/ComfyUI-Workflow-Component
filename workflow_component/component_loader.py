@@ -171,14 +171,25 @@ def create_dynamic_class(component_name, workflow, category=None):
 
         CATEGORY = category
 
-        def doit(self, *args, **kwargs):
-            return workflow_execution.execute(component_name, prompt, workflow,
-                                              internal_id_name_map, optional_inputs, input_mapping, output_mapping,
-                                              *args, **kwargs)
+        COMPONENT_NAME = component_name
 
-        @classmethod
-        def IS_CHANGED(cls, **kwargs):
-            return workflow_execution.is_changed(component_name, internal_id_name_map, output_mapping, **kwargs)
+        def __init__(self):
+            super().__init__()
+            self.virtual_server = None
+            self.executor = None
+
+        def get_executor(self, node_id):
+            if self.executor is None:
+                self.virtual_server = workflow_execution.VirtualServer(component_name, internal_id_name_map, node_id)
+                self.executor = workflow_execution.ExpPromptExecutor(self.virtual_server)
+
+            return self.executor
+
+        def doit(self, **kwargs):
+            return workflow_execution.execute(self, prompt, workflow, optional_inputs, input_mapping, output_mapping, **kwargs)
+
+        def IS_CHANGED(self, **kwargs):
+            return workflow_execution.is_changed(self, output_mapping, **kwargs)
 
     return DynamicClass
 

@@ -54,28 +54,6 @@ class VirtualServer:
         return PromptServer.instance.send_sync(event, data, sid)
 
 
-executor_dict = {}
-
-
-def garbage_collect(keys):
-    global executor_dict
-    executor_dict = {key: value for key, value in executor_dict.items() if key in keys}
-
-
-def get_executor(component_name, internal_id_name_map, node_id):
-    if node_id in executor_dict:
-        if executor_dict[node_id][0] != component_name:
-            del executor_dict[node_id]
-
-    if node_id not in executor_dict:
-        vs = VirtualServer(component_name, internal_id_name_map, node_id)
-        executor = ExpPromptExecutor(vs)
-        executor.calculated_outputs = set()
-        executor_dict[node_id] = (component_name, executor)
-
-    return executor_dict[node_id][1]
-
-
 virtual_prompt_id = 0
 
 
@@ -85,10 +63,10 @@ def get_virtual_prompt_id(node_id):
     return f"wc-{node_id}-{virtual_prompt_id}"
 
 
-def is_changed(component_name, internal_id_name_map, output_mapping, **kwargs):
+def is_changed(obj, output_mapping, **kwargs):
     node_id = int(kwargs['unique_id'])
-    nodes = kwargs['extra_pnginfo']['workflow']['nodes']
-    current_component_node = [node for node in nodes if node['id'] == node_id]
+    workflow_nodes = kwargs['extra_pnginfo']['workflow']['nodes']
+    current_component_node = [node for node in workflow_nodes if node['id'] == node_id]
 
     if len(current_component_node) == 0:
         print(f"MISSING NODE: {node_id}")
@@ -96,7 +74,7 @@ def is_changed(component_name, internal_id_name_map, output_mapping, **kwargs):
     else:
         current_component_node = current_component_node[0]
 
-    pe = get_executor(component_name, internal_id_name_map, node_id)
+    pe = obj.get_executor(node_id)
 
     for key in output_mapping:
         order, _ = output_mapping[key]
@@ -112,16 +90,16 @@ def is_changed(component_name, internal_id_name_map, output_mapping, **kwargs):
     return False
 
 
-def execute(component_name, prompt, workflow, internal_id_name_map, optional_inputs, input_mapping, output_mapping,
-            *args, **kwargs):
+def execute(obj, prompt, workflow, optional_inputs, input_mapping, output_mapping, **kwargs):
     node_id = kwargs['unique_id']
-    pe = get_executor(component_name, internal_id_name_map, node_id)
+    pe = obj.get_executor(node_id)
     pe.server.occurred_event = None
     pe.server.update_node_status("Begin (0%)", 0)
     pe.calculated_outputs = set()
 
     changed_inputs = set()
 
+    current_component_node = None
     for node in kwargs['extra_pnginfo']['workflow']['nodes']:
         if node['id'] == int(node_id):
             current_component_node = node
@@ -194,6 +172,10 @@ def execute(component_name, prompt, workflow, internal_id_name_map, optional_inp
                 execute_outputs.append(node['id'])
 
     workflow['client_id'] = pe.server.client_id
+
+    if int(node_id) == 19:
+        pass
+
     pe.execute(prompt, prompt_id, workflow, execute_outputs=execute_outputs)
 
     if pe.server.occurred_event is not None:
@@ -221,7 +203,7 @@ def execute(component_name, prompt, workflow, internal_id_name_map, optional_inp
         input_data_all = get_input_data(inputs, class_def, output_node_id, pe.outputs, prompt, workflow)
 
         if input_data_all is None:
-            print(f"ERROR: Output slot '{key}' in '{component_name}[{node_id}]' doesn't provide any value.")
+            print(f"ERROR: Output slot '{key}' in '{obj.component_name}[{node_id}]' doesn't provide any value.")
             unboxed_value = None
         else:
             _, value = next(iter(input_data_all.items()))
