@@ -395,7 +395,25 @@ def build_input_types(i, input_mapping, input_types, node, node_config_map, spec
                                         default_value = int(default_value)
                                     elif input_type == "FLOAT":
                                         default_value = float(default_value)
+                                
+                                if 'step' in spec_map[input_label]:
+                                    if input_type == "INT":
+                                        node_config[1]['step'] = int(spec_map[input_label]['step'])
+                                    elif input_type == "FLOAT":
+                                        node_config[1]['step'] = float(spec_map[input_label]['step'])
 
+                                if 'min' in spec_map[input_label]:
+                                    if input_type == "INT":
+                                        node_config[1]['min'] = int(spec_map[input_label]['min'])
+                                    elif input_type == "FLOAT":
+                                        node_config[1]['min'] = float(spec_map[input_label]['min'])
+                                        
+                                if 'max' in spec_map[input_label]:
+                                    if input_type == "INT":
+                                        node_config[1]['max'] = int(spec_map[input_label]['max'])
+                                    elif input_type == "FLOAT":
+                                        node_config[1]['max'] = float(spec_map[input_label]['max'])
+                                        
                                 if "placeholder" in spec_map[input_label]:
                                     placeholder = spec_map[input_label]['placeholder']
 
